@@ -107,6 +107,115 @@ import ja from "./locales/ja";
 setLocales({ en, ja });
 ```
 
+## Language switching
+
+The hooks accept any `string` for `lang`, but for a real app you'll usually want a constrained set of codes, a default fallback, and a UI control to switch between them. Build those once in your app — the package doesn't ship them because they tend to be tied to your auth/session model.
+
+### Typing the supported codes
+
+```ts
+// src/i18n/lang.ts
+
+/** Matches `AuthUser.lang` from the verify-token response. */
+export type Lang = "en" | "bn" | "ne";
+
+export const SUPPORTED_LANGS: readonly Lang[] = ["en", "bn", "ne"] as const;
+export const DEFAULT_LANG: Lang = "en";
+
+/**
+ * Narrow an arbitrary value (e.g. `useAuthStore((s) => s.user?.lang)`,
+ * which is `Lang | undefined`) to one of our `Lang` codes, falling back
+ * to `DEFAULT_LANG`. Pass the result to `getTranslation` / `useTranslation`.
+ */
+export function resolveLang(value: unknown): Lang {
+  return typeof value === "string" &&
+    (SUPPORTED_LANGS as readonly string[]).includes(value)
+    ? (value as Lang)
+    : DEFAULT_LANG;
+}
+```
+
+### Reading translations in components
+
+```tsx
+// src/components/Greeting.tsx
+import { useTranslation } from "@pantho075/locale";
+import type { Translations } from "@/types/localeTypes";
+import { resolveLang } from "@/i18n/lang";
+import { useAuthStore } from "@/stores/auth";
+
+export function Greeting() {
+  const lang = useAuthStore((s) => s.user?.lang);
+  const t = useTranslation<Translations>(resolveLang(lang));
+  return <h1>{t.title}</h1>;
+}
+```
+
+…and in non-React / server code:
+
+```ts
+import { getTranslation } from "@pantho075/locale";
+import { resolveLang } from "@/i18n/lang";
+import type { Translations } from "@/types/localeTypes";
+
+export async function loadGreeting() {
+  const { loading } = getTranslation<Translations>(resolveLang("bn"));
+  return loading;
+}
+```
+
+### Switching languages at runtime
+
+The package ships `switchLocale(lang)` — call it and every component using `useTranslation()` (no argument) re-renders with the new bundle. Combined with `setLocales(...)` at startup, this is the whole switching story.
+
+```tsx
+// src/components/LanguageSwitcher.tsx
+import { switchLocale } from "@pantho075/locale";
+import { useAuthStore } from "@/stores/auth";
+import type { Lang } from "@/i18n/lang";
+
+const LABELS: Record<Lang, string> = {
+  en: "English",
+  bn: "বাংলা",
+  ne: "नेपाली",
+};
+
+export function LanguageSwitcher() {
+  const user = useAuthStore((s) => s.user);
+
+  return (
+    <select
+      value={user?.lang ?? "en"}
+      onChange={(e) => {
+        const next = e.target.value as Lang;
+        // Persist to your auth store / cookie / localStorage…
+        useAuthStore.setState((s) => ({
+          user: s.user ? { ...s.user, lang: next } : s.user,
+        }));
+        // And tell the package. Components using useTranslation() with no
+        // argument re-render automatically.
+        switchLocale(next);
+      }}
+    >
+      {(Object.keys(LABELS) as Lang[]).map((code) => (
+        <option key={code} value={code}>{LABELS[code]}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+Components don't need to change. They call `useTranslation()` with no argument:
+
+```tsx
+// was: const t = useTranslation<Translations>(lang);
+// now: same hook, no arg → subscribes to the active lang
+const t = useTranslation<Translations>();
+return <h1>{t.title}</h1>;
+```
+
+`useTranslation` keeps its existing `(lang)` signature for callers that want to pin a language. The two modes coexist — explicit arg wins over the active lang.
+
 ## API
 
 ### `getTranslation<T>(lang: string): T`
@@ -124,16 +233,31 @@ interface English {
 const en = getTranslation<English>("en");
 ```
 
-### `useTranslation<T>(lang: string): T`
+### `useTranslation<T>(lang?: string): T`
 
-React hook wrapping `getTranslation`. Memoized on `lang` — same language returns the same object reference across re-renders.
+React hook wrapping `getTranslation`. Two modes:
+
+- **Explicit** — `useTranslation('en')` is memoized on `'en'`. Same language returns the same object reference across re-renders.
+- **Active** — `useTranslation()` (no argument) subscribes to the package's currently active language and returns `getTranslation(activeLang)`. Components re-render automatically when `switchLocale(...)` is called.
 
 ```ts
 import { useTranslation } from "@pantho075/locale";
 
-const { title } = useTranslation("en"); // string | undefined
-const en = useTranslation<English>("en"); // typed
+const { title } = useTranslation("en");      // explicit, pinned
+const t = useTranslation<English>();         // active, subscribes
 ```
+
+### `switchLocale(lang: string): void`
+
+Sets the package's active language and notifies every `useTranslation()` subscriber to re-render. Idempotent: calling with the current value is a no-op. Unknown values are accepted and fall back to the empty bundle the same way `getTranslation(unknown)` does.
+
+```ts
+import { switchLocale } from "@pantho075/locale";
+
+switchLocale("bn");
+```
+
+See [Switching languages at runtime](#switching-languages-at-runtime).
 
 ### `setLocales<T>(locales: Record<string, T>): void`
 
