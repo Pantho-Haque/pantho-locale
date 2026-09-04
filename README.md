@@ -17,6 +17,8 @@ export function Example() {
 }
 ```
 
+The example above uses the package's built-in sample bundles (`en`, `bn`, `ne`). For real apps you'll want to use your own data — see [Using your own translations](#using-your-own-translations) below.
+
 ## Install
 
 ```bash
@@ -53,28 +55,57 @@ const { title, home } = getTranslation("en");
 console.log(title, home.header, home.footer);
 ```
 
-### Adding your own keys
+## Using your own translations
 
-Edit `src/locales/en.ts` (and `bn.ts`, `ne.ts`) in this package, or fork it. Each file is just a plain object exported as default:
+The package ships with three sample locales for demo purposes. To use your own translation data, call `setLocales(...)` once at app startup with a map of language code → bundle. After that, `getTranslation` and `useTranslation` return your data.
 
 ```ts
-// src/locales/en.ts
-const data = {
-  title: "Welcome",
-  home: {
-    header: "Hello",
-    footer: "Goodbye",
-  },
-  greeting: "Hi there",
-};
+// src/translations.ts
+import { setLocales } from "@pantho075/locale";
+import en from "./locales/en";
+import bn from "./locales/bn";
 
-export default data;
+setLocales({ en, bn });
 ```
+
+Then anywhere in your app:
+
+```ts
+import { useTranslation } from "@pantho075/locale";
+
+function Greeting({ lang }: { lang: string }) {
+  const t = useTranslation<typeof en>(lang);
+  return <h1>{t.title}</h1>;
+}
+```
+
+### Semantics
+
+- **`setLocales` replaces the entire map** — it does not merge. If you call `setLocales({ en })`, the previous `bn`/`ne` entries are gone and will return `{}`. Pass every locale you want available.
+- **One-shot setup.** Call `setLocales` at app startup. Calling it later does not invalidate previously memoized `useTranslation` results — if you need to swap locales at runtime, hold `lang` in reactive state and let React re-run the hook.
+- **Missing languages return `{}`** (the same frozen empty object every time — safe to compare with `===`).
+- **Missing keys return `undefined`** — standard JS object semantics. No proxy wrapping.
 
 ### Adding a new locale
 
-1. Create `src/locales/<code>.ts` that exports the locale object as default.
-2. Import it in `src/getTranslation.ts` and add it to the `locales` map.
+You don't need to touch this package's source. Just add a file in your app and register it via `setLocales`:
+
+```ts
+// src/locales/ja.ts
+export default {
+  title: "こんにちは",
+  home: { header: "ヘッダー", footer: "フッター" },
+};
+```
+
+```ts
+// src/translations.ts
+import { setLocales } from "@pantho075/locale";
+import en from "./locales/en";
+import ja from "./locales/ja";
+
+setLocales({ en, ja });
+```
 
 ## API
 
@@ -104,15 +135,17 @@ const { title } = useTranslation("en"); // string | undefined
 const en = useTranslation<English>("en"); // typed
 ```
 
+### `setLocales<T>(locales: Record<string, T>): void`
+
+Replaces the package's internal locale registry. Call once at app startup to swap in your own bundles. See [Using your own translations](#using-your-own-translations).
+
 ### `TranslationData`
 
 The default return type — `Record<string, unknown>`. Most consumers will constrain this with their own interface via the generic.
 
 ## Why no JSON files?
 
-Because the package ships its own locale data, it doesn't need to scan the consumer's filesystem, doesn't need a bundler alias, and doesn't need `resolveJsonModule`. The data is just regular TypeScript that gets tree-shaken and bundled like any other code.
-
-If you want to override locales from your own app, you can fork the package and build your own locale map.
+Translation data is just regular TypeScript that gets tree-shaken and bundled like any other code. `setLocales` lets your app own its own locale files without forking the package or shipping JSON.
 
 ## License
 

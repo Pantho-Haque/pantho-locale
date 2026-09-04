@@ -1,6 +1,6 @@
 {
   "name": "@pantho075/locale",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Tiny framework-agnostic i18n core. Translation data lives in TS, no JSON files, no provider. Works in React, Next.js, Vue, Svelte, and Node.",
   "type": "module",
   "sideEffects": false,
