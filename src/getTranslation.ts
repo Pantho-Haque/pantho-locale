@@ -8,7 +8,7 @@ const EMPTY: TranslationData = Object.freeze({});
 
 /**
  * Locale registry. Adding a new language means:
- *   1. drop a `src/locales/<code>.ts` that exports `normalizeTopLevel(data)`
+ *   1. drop a `src/locales/<code>.ts` that exports the locale object as default
  *   2. import it here
  *   3. add it to this map
  */

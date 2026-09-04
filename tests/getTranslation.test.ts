@@ -49,13 +49,8 @@ describe("getTranslation", () => {
     });
   });
 
-  it("normalizes missing top-level keys to null", () => {
+  it("returns undefined for missing keys (standard JS semantics)", () => {
     const en = getTranslation<Record<string, unknown>>("en");
-    expect(en.totallyMissing).toBeNull();
-  });
-
-  it("preserves explicit null values in source", () => {
-    const en = getTranslation<{ maybe?: string | null }>("en");
-    expect(en.maybe ?? null).toBeNull();
+    expect(en.totallyMissing).toBeUndefined();
   });
 });

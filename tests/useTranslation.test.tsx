@@ -43,10 +43,10 @@ describe("useTranslation", () => {
     expect(result.current).toEqual({});
   });
 
-  it("normalizes missing top-level keys to null", () => {
+  it("returns undefined for missing keys (standard JS semantics)", () => {
     const { result } = renderHook(() =>
       useTranslation<Record<string, unknown>>("en"),
     );
-    expect(result.current.totallyMissing).toBeNull();
+    expect(result.current.totallyMissing).toBeUndefined();
   });
 });

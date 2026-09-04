@@ -55,12 +55,10 @@ console.log(title, home.header, home.footer);
 
 ### Adding your own keys
 
-Edit `src/locales/en.ts` (and `bn.ts`, `ne.ts`) in this package, or fork it. Each file is just a `const data = { ... }` wrapped in `withNullTopLevel`:
+Edit `src/locales/en.ts` (and `bn.ts`, `ne.ts`) in this package, or fork it. Each file is just a plain object exported as default:
 
 ```ts
 // src/locales/en.ts
-import { withNullTopLevel } from "../normalize";
-
 const data = {
   title: "Welcome",
   home: {
@@ -70,43 +68,13 @@ const data = {
   greeting: "Hi there",
 };
 
-export default withNullTopLevel(data);
+export default data;
 ```
 
 ### Adding a new locale
 
-1. Create `src/locales/<code>.ts` that exports `withNullTopLevel(...)`.
+1. Create `src/locales/<code>.ts` that exports the locale object as default.
 2. Import it in `src/getTranslation.ts` and add it to the `locales` map.
-
-## Missing-value semantics
-
-This is important — read it.
-
-| Situation                                | Returned value                              |
-| ---------------------------------------- | ------------------------------------------- |
-| Top-level key is **absent** from source  | `null` (Proxy returns null on miss)         |
-| Nested key is **absent** from source     | `undefined` (standard JS)                   |
-| Key is present with value `null`         | `null`                                      |
-| Key is present with a string/object/etc. | that value                                  |
-
-So:
-
-- `useTranslation('en').totallyMissing` → `null`
-- `useTranslation('en').home.missing` → `undefined`
-- `useTranslation('en').home.footer` (where `home.footer` isn't in source) → `undefined`
-
-If you need `null` for a missing nested key, write it explicitly in the source:
-
-```ts
-const data = {
-  home: {
-    header: "Hello",
-    footer: null, // explicit null, not "missing"
-  },
-};
-```
-
-The Proxy only wraps the **top level**. Nested objects are returned by reference, so they keep standard JS behavior — missing nested keys read as `undefined` and you can iterate them with `Object.keys()` etc.
 
 ## API
 
@@ -132,7 +100,7 @@ React hook wrapping `getTranslation`. Memoized on `lang` — same language retur
 ```ts
 import { useTranslation } from "@pantho075/locale";
 
-const { title } = useTranslation("en"); // string | null
+const { title } = useTranslation("en"); // string | undefined
 const en = useTranslation<English>("en"); // typed
 ```
 
@@ -144,7 +112,7 @@ The default return type — `Record<string, unknown>`. Most consumers will const
 
 Because the package ships its own locale data, it doesn't need to scan the consumer's filesystem, doesn't need a bundler alias, and doesn't need `resolveJsonModule`. The data is just regular TypeScript that gets tree-shaken and bundled like any other code.
 
-If you want to override locales from your own app, you can fork the package or import the `normalize` helper directly and build your own locale map.
+If you want to override locales from your own app, you can fork the package and build your own locale map.
 
 ## License
 

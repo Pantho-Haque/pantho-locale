@@ -1,5 +1,3 @@
-import { withNullTopLevel } from "../normalize";
-
 const data = {
   title: "the title",
   home: {
@@ -8,4 +6,4 @@ const data = {
   },
 };
 
-export default withNullTopLevel(data);
+export default data;
